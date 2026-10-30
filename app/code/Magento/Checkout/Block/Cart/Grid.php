@@ -118,9 +118,38 @@ class Grid extends \Magento\Checkout\Block\Cart
             $pager->setAvailableLimit([$availableLimit => $availableLimit])->setCollection($itemsCollection);
             $this->setChild('pager', $pager);
             $itemsCollection->load();
+            $this->assignChildItems($itemsCollection);
             $this->prepareItemUrls();
         }
         return $this;
+    }
+
+    /**
+     * The grid collection only contains parent items, assign the child items of the quote to the paged parent items
+     *
+     * @param \Magento\Quote\Model\ResourceModel\Quote\Item\Collection $itemsCollection
+     * @return void
+     */
+    private function assignChildItems(\Magento\Quote\Model\ResourceModel\Quote\Item\Collection $itemsCollection): void
+    {
+        if (!$itemsCollection->getItems()) {
+            return;
+        }
+
+        $quoteItemsById = [];
+        foreach ($this->getQuote()->getAllItems() as $quoteItem) {
+            $quoteItemsById[(int)$quoteItem->getId()] = $quoteItem;
+        }
+
+        foreach ($itemsCollection->getItems() as $collectionItem) {
+            $quoteItem = $quoteItemsById[(int)$collectionItem->getId()] ?? null;
+            if ($quoteItem === null || $collectionItem->getChildren()) {
+                continue;
+            }
+            foreach ($quoteItem->getChildren() as $child) {
+                $collectionItem->addChild($child);
+            }
+        }
     }
 
     /**
